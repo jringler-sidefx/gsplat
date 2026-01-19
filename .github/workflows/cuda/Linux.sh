@@ -1,15 +1,46 @@
 #!/bin/bash
+set -euo pipefail
 
 # Took from https://github.com/pyg-team/pyg-lib/
 
-OS=ubuntu2004
+OS=ubuntu2204
+if [ -f /etc/os-release ]; then
+  . /etc/os-release
+  if [ "${ID:-}" = "ubuntu" ] && [ -n "${VERSION_ID:-}" ]; then
+    OS="ubuntu${VERSION_ID//.}"
+  fi
+fi
+
+resolve_cuda_repo_file() {
+  local cuda_dir
+  local base_url
+  local index
+  local file
+  local pattern="cuda-repo-${OS}-${CUDA/./-}-local_.*_amd64.deb"
+
+  for cuda_dir in "${CUDA_DIR_CANDIDATES[@]}"; do
+    base_url="https://developer.download.nvidia.com/compute/cuda/${cuda_dir}/local_installers"
+    if ! index=$(wget -qO- "${base_url}/"); then
+      continue
+    fi
+    file=$(printf "%s" "${index}" | grep -oE "${pattern}" | head -n1 || true)
+    if [ -n "${file}" ]; then
+      URL="${base_url}"
+      FILENAME="${file}"
+      return 0
+    fi
+  done
+
+  echo "Failed to locate CUDA ${CUDA} installer for ${OS}. Tried: ${CUDA_DIR_CANDIDATES[*]}" >&2
+  exit 1
+}
 
 case ${1} in
   cu128)
     CUDA=12.8
     APT_KEY=${OS}-${CUDA/./-}-local
-    FILENAME=cuda-repo-${APT_KEY}_${CUDA}.0-560.35.03-1_amd64.deb
-    URL=https://developer.download.nvidia.com/compute/cuda/${CUDA}.0/local_installers
+    CUDA_DIR_CANDIDATES=("12.8.1" "12.8.0")
+    resolve_cuda_repo_file
     ;;
   cu124)
     CUDA=12.4

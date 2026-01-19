@@ -8,36 +8,11 @@ set -euo pipefail
 curl -k -fSL "https://drive.google.com/u/0/uc?id=1injUyo3lnarMgWyRcXqKg4UGnN0ysmuq&export=download" --output "/tmp/gpu_driver_dlls.zip"
 7z x "/tmp/gpu_driver_dlls.zip" -o"/c/Windows/System32"
 
-resolve_cuda_windows_installer() {
-  local cuda_dir
-  local cuda_dir_regex
-  local base_url
-  local index
-  local file
-
-  for cuda_dir in "${CUDA_DIR_CANDIDATES[@]}"; do
-    base_url="https://developer.download.nvidia.com/compute/cuda/${cuda_dir}/local_installers"
-    if ! index=$(curl -fsSL "${base_url}/"); then
-      continue
-    fi
-    cuda_dir_regex=${cuda_dir//./\\.}
-    file=$(printf "%s" "${index}" | grep -oE "cuda_${cuda_dir_regex}_[0-9.]+_(windows|win10)\\.exe" | head -n1 || true)
-    if [ -n "${file}" ]; then
-      CUDA_URL="${base_url}"
-      CUDA_FILE="${file}"
-      return 0
-    fi
-  done
-
-  echo "Failed to locate CUDA ${CUDA_SHORT} Windows installer. Tried: ${CUDA_DIR_CANDIDATES[*]}" >&2
-  exit 1
-}
-
 case ${1} in
   cu128)
     CUDA_SHORT=12.8
-    CUDA_DIR_CANDIDATES=("12.8.1" "12.8.0")
-    resolve_cuda_windows_installer
+    CUDA_URL=https://developer.download.nvidia.com/compute/cuda/12.8.0/local_installers
+    CUDA_FILE=cuda_12.8.0_571.96_windows.exe
     ;;
   cu124)
     CUDA_SHORT=12.4

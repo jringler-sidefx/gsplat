@@ -11,36 +11,12 @@ if [ -f /etc/os-release ]; then
   fi
 fi
 
-resolve_cuda_repo_file() {
-  local cuda_dir
-  local base_url
-  local index
-  local file
-  local pattern="cuda-repo-${OS}-${CUDA/./-}-local_.*_amd64.deb"
-
-  for cuda_dir in "${CUDA_DIR_CANDIDATES[@]}"; do
-    base_url="https://developer.download.nvidia.com/compute/cuda/${cuda_dir}/local_installers"
-    if ! index=$(wget -qO- "${base_url}/"); then
-      continue
-    fi
-    file=$(printf "%s" "${index}" | grep -oE "${pattern}" | head -n1 || true)
-    if [ -n "${file}" ]; then
-      URL="${base_url}"
-      FILENAME="${file}"
-      return 0
-    fi
-  done
-
-  echo "Failed to locate CUDA ${CUDA} installer for ${OS}. Tried: ${CUDA_DIR_CANDIDATES[*]}" >&2
-  exit 1
-}
-
 case ${1} in
   cu128)
     CUDA=12.8
     APT_KEY=${OS}-${CUDA/./-}-local
-    CUDA_DIR_CANDIDATES=("12.8.1" "12.8.0")
-    resolve_cuda_repo_file
+    FILENAME=cuda-repo-ubuntu2204-12-8-local_12.8.0-570.86.10-1_amd64.deb
+    URL=https://developer.download.nvidia.com/compute/cuda/12.8.0/local_installers
     ;;
   cu124)
     CUDA=12.4

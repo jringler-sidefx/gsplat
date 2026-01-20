@@ -25,10 +25,6 @@ jobs:
     name: Upload to GitHub Release
     needs: [build_wheels]
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ['3.10']
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -40,9 +36,9 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           # The unique artifact names from building.yml all start with
-          # "compiled_wheels_python${{ matrix.python-version }}" so this pattern
-          # will match them all and merge them into the 'dist' directory.
-          pattern: compiled_wheels_python${{ matrix.python-version }}*
+          # "compiled_wheels_python" so this pattern will match them all
+          # and merge them into the 'dist' directory.
+          pattern: compiled_wheels_python*
           path: dist
           merge-multiple: true
 
@@ -64,7 +60,13 @@ jobs:
           fi
           echo "Upload URL: $upload_url"
 
-          for file in ./dist/*.*; do
+          shopt -s nullglob
+          files=(./dist/*.*)
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "No artifacts found in ./dist. Check build_wheels output."
+            exit 1
+          fi
+          for file in "${files[@]}"; do
             echo "Uploading $file..."
             filename=$(basename "$file")
             encoded_filename=$(echo "$filename" | sed 's/+/%2B/g')

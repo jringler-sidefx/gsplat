@@ -6,6 +6,11 @@ on:
   release:
     types: [created]
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Existing release tag to upload assets to (required for manual runs)"
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -45,12 +50,18 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "Fetching latest release info (unauthenticated)..."
-          release_info=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
-            https://api.github.com/repos/nerfstudio-project/gsplat/releases/latest)
+          if [ "${{ github.event_name }}" = "release" ] && [ -n "${{ github.event.release.upload_url }}" ]; then
+            upload_url="${{ github.event.release.upload_url }}"
+            upload_url="${upload_url%\{*}"
+            echo "Using upload URL from release event."
+          else
+            echo "Fetching release info for tag: ${{ inputs.release_tag }}"
+            release_info=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+              https://api.github.com/repos/${{ github.repository }}/releases/tags/${{ inputs.release_tag }})
 
-          # Extract the "upload_url" field and strip the {?name,label} part
-          upload_url=$(echo "$release_info" | grep '"upload_url":' | cut -d '"' -f 4 | sed 's/{.*//')
+            # Extract the "upload_url" field and strip the {?name,label} part
+            upload_url=$(echo "$release_info" | grep '"upload_url":' | cut -d '"' -f 4 | sed 's/{.*//')
+          fi
           echo "Upload URL: $upload_url"
 
           for file in ./dist/*.*; do
